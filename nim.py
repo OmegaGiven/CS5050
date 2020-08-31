@@ -16,4 +16,4 @@ def win(n):
     if n == 1:
         return True
 
-    return win(n-1)
+    return not (win(n-1) and win(n-2))
