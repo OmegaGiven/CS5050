@@ -2,4 +2,7 @@
 otherlist = [0]
 otherlist.append(10)
 list = []
-print(list.append(otherlist[1]))
+list.append(otherlist[1])
+print()
+
+# adding a commit
