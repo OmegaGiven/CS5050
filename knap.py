@@ -53,38 +53,44 @@
 #             cache[i][j] = False
 #           elif n < 0:
 #             cache[i][j] = False
-
+def initializeCache(n, m):
+  global Cache
+  Cache = {}
 
 def knapMemo(n, m):
   # linear storage of size n
   # m objects linear size of ints
   # this returns a bool of if the list of sizes can fit in a storage of size n exactly full
   global Cache
-  if [n][m] in Cache:
-    return Cache[n][m]
   if n == 0:
-    Cache[n][m] = True
     return True
   elif m == 0:
-    Cache[n][m] = False
     return False
   elif n < 0:
-    Cache[n][m] = False
     return False
-  return knapMemo(n, m - 1) or knapMemo(n - size[m], m - 1)
+  if (n, m) in Cache:
+    return Cache[(n,m)]
+  Cache[(n,m)] = knapMemo(n, m - 1) or knapMemo(n - size[m], m - 1)
+  return Cache[(n,m)]
+
 
 size = [0, 99, 2 , 3, 4, 5, 6, 7, 8, 9, 10]
 print(size)
+initializeCache(100, len(size) -1)
 print("of above list expected is: False")
 print("algorithm output: " + str(knapMemo(100, len(size) -1)))
 
 size = [0, 99, 1 , 3, 4, 5, 6, 7, 8, 9, 10]
 print(size)
+initializeCache(100, len(size) -1)
 print("of above list expected is: True")
 print("algorithm output: " + str(knapMemo(100, len(size) -1)))
 
 size = [0, 97, 38 , 3, 4, 5, 6, 7, 8, 9, 10]
 print(size)
+initializeCache(100, len(size) -1)
 print("of above list expected is: True")
 print("algorithm output: " + str(knapMemo(100, len(size) -1)))
 
+i = 0
+i
