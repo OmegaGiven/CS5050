@@ -8,10 +8,6 @@ import string
 path = ""
 fileName = "covid_DNA.fasta"
 
-import numpy as np
-import time
-import matplotlib.pyplot as plt
-
 def read_fasta(howMany = 10):
     # The first line in a FASTA record is the title line.
     # Examples:
@@ -65,43 +61,59 @@ def timeProblems(problemList, function, init = None, fit = 'exponential'):
         slope, intercept, _, _, _ = stats.linregress([np.log(v) for v in values], [np.log(t) for t in timeLine])
         print("time = %.6f * n ^ %.3f" % (np.exp(intercept), slope))
 
-
-seq = read_fasta(3)
-(name0, seq0) = seq[0]
-(name1, seq1) = seq[1]
-
-maxi = [[5,-1,-2,-1,-3],[-1,5,-3,-2,-4],[-2, -3, 5, -2, -2],[-1,-2,-2,5,-1],[-3,-4,-2,-1,5]]
-
-def matchR(A, B):
-    #uses recursion to solve the string matching problem
-    # mod the strings to put a blank in front so that n and m represent both
-    # the number of characters in the string AND the index into the string
+def matchDP(A, B):
+    #takes two strings and returns the minimum edit distance between them
+    global cache
+    cache = np.zeros((len(A)+1, len(B)+1), dtype=int)
     n = len(A)
     m = len(B)
+
     A = '_' + A
     B = '_' + B
-    return match(n, m, A, B)
 
-def match(n, m, A, B):
-  # one of the strings is empty
-  if n == 0:
-    return m
-  if m == 0:
-    return n
-  # three cases
-  return min(match(n-1, m, A, B) + 1, #delete from A
-             match(n, m-1, A, B) + 1, #delete from B
-             match(n-1,m-1, A, B) + int(A[n] != B[m])) #substitute
+    cache[(0, 0)] = 0
+    for i in range(1, m+1):
+      cache[(0, i)] = cache[(0, i-1)] + changeComp("",B[i])
+    for j in range(1, n+1):
+      cache[(j, 0)] = cache[(j-1, 0)] + changeComp(A[j],"")
 
-def printAlign(A, B):
-    n = len(A)
-    m = len(B)
-    A = '_' + A
-    B = '_' + B
-    alignment = traceback(n, m, A, B)
-    alignment.reverse()
-    for oneAlign in alignment:
-      print(oneAlign)
+
+    for i in range(1, m+1):
+      for j in range(1, n+1):
+        # first case= deletion from A,
+        # second case= deletion from B,
+        #  thridcase= Match
+        cache[(j, i)] = max( cache[(j-1, i)] + changeComp(A[j],""),
+                            cache[(j, i-1)] + changeComp("",B[i]),
+                            cache[(j-1,i-1)] + changeComp(A[j],B[i]),
+                            )
+        # print("score: " + str(cache[(j,i)]))
+    print("score: " + str(cache[(n,m)]))
+    return cache[(n, m)]
+
+def changeComp(a, b):
+  comp = ["A", "C", "G", "T"]
+  for i in range(0, 4):
+    if a == comp[i]:
+      x = i
+      break
+    else:
+      x = 4
+  for i in range(0, 4):
+    if b == comp[i]:
+      y = i
+      break
+    else:
+      y = 4
+  maxi = [[5,-1,-2,-1,-3],
+          [-1,5,-3,-2,-4],
+          [-2,-3,5,-2,-2],
+          [-1,-2,-2,5,-1],
+          [-3,-4,-2,-1,5]]
+  # print("(%s,%s) %s" % (x,y, maxi[x][y]))
+  return maxi[x][y]
+
+
 
 def traceback(n, m, A, B):
   # n is in A, m is in B
@@ -120,9 +132,9 @@ def traceback(n, m, A, B):
   # Need to determine which alignment sub solution was used for the optimal solution
   sol = cache[(n, m)]
   # we know that sol must equal one of the sub solutions
-  if sol == cache[(n-1, m)] + 1: #delete from B
+  if sol == cache[(n-1, m)] + changeComp(A[n],""): #delete from B
      return ["%s - %s" % (A[n], '_')] + traceback(n-1, m, A, B)
-  if sol == cache[(n, m-1)] + 1: #delete from A
+  if sol == cache[(n, m-1)] + changeComp("",B[m]): #delete from A
      return ["%s - %s" % ('_', B[m])] + traceback(n, m-1, A, B)
   # must have matched the characters, check the characters
   if A[n] != B[m]: # substitution
@@ -130,70 +142,84 @@ def traceback(n, m, A, B):
   # exact match
   return ["%s = %s" % (A[n], B[m])] + traceback(n-1, m-1, A, B)
 
-def matchDP(A, B):
-    #takes two strings and returns the minimum edit distance between them
-    global cache
-    cache = {}
-    n = len(A)
-    m = len(B)
-    # mod the strings to put a blank in front
-    A = '_' + A
-    B = '_' + B
-    # fill in the base cases
-    for i in range(0, m+1):
-      cache[(0, i)] = i
-    for j in range(0, n+1):
-      cache[(j, 0)] = j
-    # loop though all problems from smallest to biggest
-    # what about the 0 0 case?
-    for i in range(1, m+1):
-      for j in range(1, n+1):
-        # need to change the indexs into the array!
-        # so from n in recursion to j and from m in recursion to i
-        cache[(j, i)] = min(cache[(j-1, i)] + 1, cache[(j, i-1)] + 1, cache[(j-1,i-1)] + int(A[j] != B[i]))
-    return cache[(n, m)]
+def printAlign(A, B):
+  n = len(A)
+  m = len(B)
+  A = '_' + A
+  B = '_' + B
+  alignment = traceback(n, m, A, B)
+  alignment.reverse()
+  for oneAlign in alignment:
+    print(oneAlign)
 
-def genStr(n, chars = None):
-  if chars is None:
-    chars = string.ascii_lowercase
-  return  ''.join(random.choice(chars) for i in range(n))
+def tracebackDP(n, m, A, B):
+  out = []
+  while True:
+    # base cases
+    if n == 0 and m == 0:
+      return out
+    if n == 0:
+      # delete from A
+      out += ["%s - %s" % ('_', B[m])]
+      m = m - 1
+      continue
+    # no characters in B, so delete from B and continue
+    if m == 0:
+      # delete from B
+      out +=  ["%s - %s" % (A[n], '_')]
+      n = n -1
+      continue
 
-def generateProblems(start, end, increment):
-  # generates problems described as (size, (randstring, randstring))
-  return [(i, (genStr(i), genStr(i))) for i in range(start, end, increment)]
+    # Need to determine which alignment sub solution was used for the optimal solution
+    sol = cache[(n, m)]
+    # we know that sol must equal one of the sub solutions
+    if sol == cache[(n-1, m)] + changeComp(A[n],""): #delete from B
+      out += ["%s - %s" % (A[n], '_')]
+      n = n-1
+      continue
+    if sol == cache[(n, m-1)] + changeComp("",B[m]): #delete from A
+      out += ["%s - %s" % ('_', B[m])]
+      m = m-1
+      continue
+    # must have matched the characters, check the characters
+    if A[n] != B[m]: # substitution
+      out += ["%s x %s" % (A[n], B[m])]
+      n = n - 1
+      m = m - 1
+      continue
+    # exact match
+    out += ["%s = %s" % (A[n], B[m])]
+    n = n - 1
+    m = m - 1
 
-#TEST correctness of code
-A = 'ACGGAGAGAATC'
-B = 'TGGAGAGAATTC'
+def printAlignDP(A, B):
+  n = len(A)
+  m = len(B)
+  A = '_' + A
+  B = '_' + B
+  alignment = tracebackDP(n, m, A, B)
+  alignment.reverse()
+  for oneAlign in alignment:
+    print(oneAlign)
 
-#match to fill in the cache
-# edit = matchDP(A, B)
-# printAlign(A, B)
+# seq = read_fasta()
+# (name0, seq0) = seq[0]
+# (name1, seq1) = seq[1]
+#
+# edit = matchDP(seq0[:3000], seq1[:3000])
+# printAlignDP(seq0[:3000], seq1[:3000])
 
-seq = read_fasta(3)
+# first large test Success!
+seq = read_fasta()
 (name0, seq0) = seq[0]
 (name1, seq1) = seq[1]
 
-edit = matchDP(seq0, seq1)
-printAlign(seq0, seq1)
+# edit = matchDP(seq0[:10], seq1[:10])
+# printAlignDP(seq0[:10], seq1[:10])
 
+def generateProblems(start, end, increment):
+  # generates problems described as (size, (randstring, randstring))
+  return [(i, (seq0[:i], seq1[:i])) for i in range(start, end, increment)]
 
-# Pass = True
-# for i in range(0, 10):
-#   A = genStr(10, ['a', 'b', 'c'])
-#   B = genStr(10, ['a', 'b', 'c'])
-#   Pass = Pass and matchR(A,B) == matchDP(A,B)
-# if Pass:
-#   print("Pass")
-# else:
-#   print('Fail')
-
-
-# TEST THE TIMING OF THE CODE
-#test the recursive version on small problems
-smallProblems = generateProblems(2, 12, 1)
-# timeProblems(smallProblems, matchR, fit = 'exponential')
-
-bigProblems = generateProblems(2, 2002, 100)
-#since we expect the DP algorithm to be polynomial
-timeProblems(bigProblems, matchDP, fit = 'polynomial')
+problems = generateProblems(1000,10000,500)
+timeProblems(problems, matchDP, fit = 'polynomial')
